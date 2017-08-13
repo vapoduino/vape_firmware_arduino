@@ -30,15 +30,15 @@
 
 #define MOSFET_GATE_PIN 3
 #define BUTTON_PIN 2
-#define LED_GREEN 5
-#define LED_BLUE 6
+#define LED_RED 9
+#define LED_GREEN 6
+#define LED_BLUE 5
 #define MAX_POWER_PIN 8
 #define MAX_CS_PIN 10
 #define CHARGER_EN_PIN A0
 #define CHARGER_STATUS_PIN A1
 #define CHARGER_STANDBY_PIN A2
 #define BAT_SENSE_PIN A7
-#define VIBRATION_PIN 4
 
 #define PID_P 11          // counter-"force"
 #define PID_I 6        // counter-offset
@@ -48,7 +48,7 @@
 #define PID_D_HEATING 4
 #define MAX_HEATING_POWER 255
 #define AVG_VALUES_COUNT 5
-#define VDIV 0.004853875f
+#define VDIV 0.004780546f // (voltage/raw_value)
 
 double temp, output, desired_temp;
 boolean new_cycle;
@@ -63,14 +63,14 @@ BatteryMonitor batMonitor(BAT_SENSE_PIN, VDIV);
 void setup() {
     Serial.begin(9600);
     Serial.println("#####################################");
-    Serial.println("#####      VAPODUINO  v_0.1     #####");
+    Serial.println("#####      VAPODUINO  v_0.2     #####");
     Serial.println("#####################################\n\n");
     
     // Set pinmodes
+    pinMode(LED_RED, OUTPUT);
     pinMode(LED_GREEN, OUTPUT);
     pinMode(LED_BLUE, OUTPUT);
-    pinMode(VIBRATION_PIN, OUTPUT);
-    pinMode(BUTTON_PIN, INPUT);
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
     
     desired_temp = 180;
     
@@ -99,7 +99,6 @@ void loop() {
         if (output == 255) {
             if (too_much_draw_counter > 20) {
                 digitalWrite(LED_GREEN, HIGH);
-                digitalWrite(VIBRATION_PIN, HIGH);
                 digitalWrite(LED_BLUE, LOW);
             } else {
                 too_much_draw_counter++;
@@ -107,13 +106,12 @@ void loop() {
         } else {
             too_much_draw_counter = 0;
             digitalWrite(LED_GREEN, LOW);
-            digitalWrite(VIBRATION_PIN, LOW);
             digitalWrite(LED_BLUE, HIGH);
         }
     } else {
         powerDown();
         
-        digitalWrite(LED_BLUE, LOW);
+        digitalWrite(LED_RED, LOW);
         powerUp();
         
         output = 0;
@@ -134,10 +132,10 @@ void heatUpChamber() {
         // blink 10 times
         for (byte n = 0; n < 10; n++) {
             delay(200);
-            digitalWrite(LED_BLUE, LOW);
+            digitalWrite(LED_RED, LOW);
             digitalWrite(LED_GREEN, HIGH);
             delay(200);
-            digitalWrite(LED_BLUE, HIGH);
+            digitalWrite(LED_RED, HIGH);
             digitalWrite(LED_GREEN, LOW);
         }
 
@@ -155,18 +153,11 @@ void heatUpChamber() {
       pid.SetOutputLimits(0, MAX_HEATING_POWER);
       pid.SetMode(AUTOMATIC);
       
-      while (digitalRead(BUTTON_PIN) == LOW) {
-    	  if (temp > desired_temp) {
-    	      digitalWrite(VIBRATION_PIN, HIGH);
-    	      delay(200);
-    	      digitalWrite(VIBRATION_PIN, LOW);
-    	      break;
-		  }
-
+      while (digitalRead(BUTTON_PIN) == LOW && temp < desired_temp) {
           temp = tempSensor.getTemp();
           
           digitalWrite(LED_GREEN, HIGH);
-          digitalWrite(LED_BLUE, LOW);
+          digitalWrite(LED_RED, LOW);
           pid.Compute();
           heatingElement.setHeat(output);
           printStatus();
@@ -174,7 +165,7 @@ void heatUpChamber() {
           delay(50);
       }
 
-      digitalWrite(LED_BLUE, HIGH);
+      digitalWrite(LED_RED, HIGH);
     }
 }
 
@@ -194,9 +185,9 @@ void powerDown() {
     
     heatingElement.stopHeat();
     tempSensor.powerDown();
+    digitalWrite(LED_RED, HIGH);
     digitalWrite(LED_BLUE, HIGH);
     digitalWrite(LED_GREEN, HIGH);
-    digitalWrite(VIBRATION_PIN, LOW);
 
     // wait for all outputs
     delay(200);
@@ -227,13 +218,12 @@ void powerUp() {
     
     // Start PID control
     pid.SetMode(AUTOMATIC);
-
-	Serial.print("Battery: ");
-	Serial.print(batMonitor.getPercentage());
-	Serial.print("%,  RAW:");
-  Serial.print(analogRead(BAT_SENSE_PIN));
-  Serial.print(",  ");
-	Serial.println(batMonitor.getVoltage());
+  	Serial.print("Battery: ");
+  	Serial.print(batMonitor.getPercentage());
+  	Serial.print("%,  RAW:");
+    Serial.print(analogRead(BAT_SENSE_PIN));
+    Serial.print(",  ");
+  	Serial.println(batMonitor.getVoltage());
 }
 
 void wakeUp() {

@@ -34,7 +34,7 @@ TemperatureSensor::TemperatureSensor(uint8_t CSPin, uint8_t powerPin, uint8_t av
     pinMode(_powerPin, OUTPUT);
 
     // Power down MAX31865
-    digitalWrite(_powerPin, LOW);
+    powerDown();
     
     // Deselecting MAX31865
     digitalWrite(_CSPin, HIGH);

@@ -29,8 +29,8 @@ Charger::Charger(uint8_t enablePin, uint8_t statePin, uint8_t standbyPin) {
   
     // Configuring pin as output
     pinMode(_enablePin, OUTPUT);
-    pinMode(_statePin, INPUT);
-    pinMode(_standbyPin, INPUT);
+    pinMode(_statePin, INPUT_PULLUP);
+    pinMode(_standbyPin, INPUT_PULLUP);
     
     digitalWrite(_enablePin, HIGH);
     digitalWrite(_statePin, HIGH);
