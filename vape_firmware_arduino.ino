@@ -29,7 +29,6 @@
 #include "Charger.h"
 
 #define MOSFET_GATE_PIN 3
-#define BUTTON_PIN 2
 #define LED_RED 9
 #define LED_GREEN 6
 #define LED_BLUE 5
@@ -41,17 +40,16 @@
 #define BAT_SENSE_PIN A7
 
 #define PID_P 11          // counter-"force"
-#define PID_I 6        // counter-offset
-#define PID_D 8          // dampen controlling, react on fast changes
+#define PID_I 6          // counter-offset
+#define PID_D 8         // dampen controlling, react on fast changes
 #define PID_P_HEATING 3.6
 #define PID_I_HEATING 0.2
 #define PID_D_HEATING 4
 #define MAX_HEATING_POWER 255
 #define AVG_VALUES_COUNT 5
-#define VDIV 0.004780546f // (voltage/raw_value)
+#define VDIV 0.00437428243f // (voltage/raw_value)
 
 double temp, output, desired_temp;
-boolean new_cycle;
 uint8_t too_much_draw_counter;
 
 PID pid(&temp, &output, &desired_temp, PID_P, PID_I, PID_D, DIRECT);
@@ -70,53 +68,40 @@ void setup() {
     pinMode(LED_RED, OUTPUT);
     pinMode(LED_GREEN, OUTPUT);
     pinMode(LED_BLUE, OUTPUT);
-    pinMode(BUTTON_PIN, INPUT_PULLUP);
     
     desired_temp = 180;
     
-    new_cycle = true;
     too_much_draw_counter = 0;
 
     powerUp();
+
+    temp = tempSensor.getTemp();
+    heatUpChamber();
+
+    temp = tempSensor.getTemp();
+
+    pid = PID(&temp, &output, &desired_temp, PID_P, PID_I, PID_D, DIRECT);
+    pid.SetOutputLimits(0, 255);
+    pid.SetMode(AUTOMATIC);
+    digitalWrite(LED_GREEN, LOW);
 }
 
 void loop() {
     temp = tempSensor.getTemp();
 
-    if (digitalRead(BUTTON_PIN) == LOW) {
-        if (new_cycle) {
-            heatUpChamber();
-            
-            new_cycle = false;
-            pid = PID(&temp, &output, &desired_temp, PID_P, PID_I, PID_D, DIRECT);
-            pid.SetOutputLimits(0, 255);
-            pid.SetMode(AUTOMATIC);
-            digitalWrite(LED_GREEN, LOW);
-        }
-        
-        pid.Compute();
-        heatingElement.setHeat(output);
-        if (output == 255) {
-            if (too_much_draw_counter > 20) {
-                digitalWrite(LED_GREEN, HIGH);
-                digitalWrite(LED_BLUE, LOW);
-            } else {
-                too_much_draw_counter++;
-            }
+    pid.Compute();
+    heatingElement.setHeat(output);
+    if (output == 255) {
+        if (too_much_draw_counter > 20) {
+            digitalWrite(LED_GREEN, HIGH);
+            digitalWrite(LED_RED, LOW);
         } else {
-            too_much_draw_counter = 0;
-            digitalWrite(LED_GREEN, LOW);
-            digitalWrite(LED_BLUE, HIGH);
+            too_much_draw_counter++;
         }
     } else {
-        powerDown();
-        
-        digitalWrite(LED_RED, LOW);
-        powerUp();
-        
-        output = 0;
-        temp = tempSensor.getTemp();
-        new_cycle = true;
+        too_much_draw_counter = 0;
+        digitalWrite(LED_GREEN, LOW);
+        digitalWrite(LED_RED, HIGH);
     }
 
     delay(50);
@@ -141,11 +126,8 @@ void heatUpChamber() {
 
         digitalWrite(LED_GREEN, HIGH);
 
-        while (!charger.isCharging()) {
-            powerDown();
-        }
-
-        powerUp();
+        // wait forever(!) if battery is to low
+        while (!charger.isCharging()); 
     } else {
       // heat up chamber to desired_temp
       double heating_temp = desired_temp * 1.05;
@@ -153,7 +135,7 @@ void heatUpChamber() {
       pid.SetOutputLimits(0, MAX_HEATING_POWER);
       pid.SetMode(AUTOMATIC);
       
-      while (digitalRead(BUTTON_PIN) == LOW && temp < desired_temp) {
+      while (temp < desired_temp) {
           temp = tempSensor.getTemp();
           
           digitalWrite(LED_GREEN, HIGH);
@@ -178,26 +160,6 @@ void printStatus() {
     Serial.print(batMonitor.getPercentage());
     Serial.print(" ");
     Serial.println(batMonitor.getVoltage());
-}
-
-void powerDown() {
-    Serial.println("Standby");
-    
-    heatingElement.stopHeat();
-    tempSensor.powerDown();
-    digitalWrite(LED_RED, HIGH);
-    digitalWrite(LED_BLUE, HIGH);
-    digitalWrite(LED_GREEN, HIGH);
-
-    // wait for all outputs
-    delay(200);
-
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-    sleep_enable();
-    attachInterrupt(0, wakeUp, LOW);
-    sleep_mode();
-    
-    // Device woke up
 }
 
 void powerUp() {
@@ -231,15 +193,3 @@ void wakeUp() {
     sleep_disable();
     detachInterrupt(0);
 }
-
-void delay_with_interrupt(int time, int interrupting_button_state) {
-  int counter = 0;
-    while (digitalRead(BUTTON_PIN) != interrupting_button_state & counter < time) {
-        counter++;
-        delay(1);
-    }
-    // debounce
-    delay(20);
-}
-
-

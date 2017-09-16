@@ -52,7 +52,7 @@ boolean TemperatureSensor::powerUp(void) {
     digitalWrite(_powerPin, LOW);
     
     // Wait for MAX31865 to set up
-    delay(200);
+    delay(20);
     
     // Initial configuration of MAX31865
     if (!_sendConfig(MAX31865_CONFIG)) {
@@ -81,6 +81,7 @@ boolean TemperatureSensor::powerUp(void) {
 void TemperatureSensor::powerDown(void) {
     digitalWrite(_powerPin, HIGH);
 }
+
 /**
  * Reads the rtd value from the MAX31865 chip and calculates the temperature by using
  * the Callendar-Van Dusen equation for approximation.
