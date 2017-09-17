@@ -172,14 +172,12 @@ void powerUp() {
     temp = tempSensor.getTemp();
     while (temp < 0) {
         // retrying, sometimes it takes some time
-    	Serial.println(" Reading negative temps... Retrying");
+    	  Serial.println(" Reading negative temps... Retrying");
         temp = tempSensor.getTemp();
         Serial.print(temp);
         Serial.print(" ");
     }
     
-    // Start PID control
-    pid.SetMode(AUTOMATIC);
   	Serial.print("Battery: ");
   	Serial.print(batMonitor.getPercentage());
   	Serial.print("%,  RAW:");
@@ -188,8 +186,3 @@ void powerUp() {
   	Serial.println(batMonitor.getVoltage());
 }
 
-void wakeUp() {
-    // Disable sleep and interrupt
-    sleep_disable();
-    detachInterrupt(0);
-}
