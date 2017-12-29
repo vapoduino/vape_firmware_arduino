@@ -6,7 +6,7 @@ It is based on Arduino.
 
 ## Hardware
 Schematic can be found at [acidg/vape_hardware](https://github.com/acidg/vape_schematics).
-Also check out [acidg/vape_model](https://github.com/acidg/vape_schematics) for a wooden model.
+Also check out [acidg/vape_model](https://github.com/acidg/vape_model) for a wooden model.
 
 ## Get it Running
 1. Check out this repository: `git clone https://github.com/acidg/vape_firmware_arduino`
